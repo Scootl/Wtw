@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Words Their Way – Spelling Test</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(120deg,#b2f0fc,#fffacc 70%);margin:0}
+  #wrap{max-width:700px;margin:40px auto;background:#fff;border-radius:22px;box-shadow:0 0 24px rgba(0,0,0,.1);padding:32px 28px;min-height:540px}
+  h1,h2{text-align:center;margin:0}
+  h1{font-size:2.2em;color:#168047;margin-bottom:10px}
+  p{font-size:1.05em;color:#333;line-height:1.5}
+  .btn{padding:12px 30px;background:#168047;color:#fff;border:none;font-size:1.08em;border-radius:9px;cursor:pointer;transition:background .14s}
+  .btn:hover{background:#21b864}
+  .hidden{display:none}
+  input[type=text]{font-size:1.25em;padding:10px;width:100%;box-sizing:border-box;border:2px solid #8ee7c9;border-radius:10px}
+  table{width:100%;border-collapse:collapse;font-size:1.02em;margin-top:20px}
+  th,td{border:1px solid #ccc;padding:6px;text-align:left}
+  th{background:#f4f4f4}
+  .correct{color:#21a445;font-weight:bold}
+  .incorrect{color:#c92323;font-weight:bold}
+  .badge{width:140px;margin:0 auto 12px;padding:8px 0;border-radius:30px;font-weight:bold;color:#000;text-align:center}
+  .green{background:#9bf29e}
+  .yellow{background:#fff78c}
+</style>
+</head>
+<body>
+<div id="wrap">
+
+  <!-- Instructions -->
+  <div id="intro">
+    <h1>📝 Words Their Way Spelling Test</h1>
+    <p><strong>Teacher:</strong> Read each word, use it in a sentence, then repeat the word.<br>
+       <strong>Student:</strong> After you hear the word, type it in the box and press <em>Submit</em>.<br>
+       Capital letters aren’t required. Spaces before or after the word are ignored.</p>
+    <button class="btn" id="startBtn">Start</button>
+  </div>
+
+  <!-- List-selection menu -->
+  <div id="menu" class="hidden">
+    <h2>Select a word list</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:24px 0">
+      <button class="btn listBtn" data-set="PSI">PSI</button>
+      <button class="btn listBtn" data-set="ESI">ESI</button>
+      <button class="btn listBtn" data-set="USI">USI</button>
+      <button class="btn listBtn" data-set="EXT">EXT</button>
+    </div>
+  </div>
+
+  <!-- Entry card -->
+  <div id="card" class="hidden">
+    <h2 id="wordNum"></h2>
+    <input id="response" type="text" autocomplete="off" spellcheck="false" placeholder="Type the word here">
+    <div style="margin-top:18px;text-align:center;">
+      <button class="btn" id="submitBtn">Submit</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="hidden">
+    <div id="teacherBadge" class="badge"></div>
+    <h2>Results</h2>
+    <p id="scoreLine"></p>
+    <table id="resultsTable">
+      <thead><tr><th>#</th><th>Word</th><th>Your spelling</th><th>✔️ / ✖️</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div style="text-align:center;margin-top:22px;">
+      <button class="btn" id="exportBtn">Export CSV</button>
+      <button class="btn" onclick="location.reload()">Restart</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ---------- WORD LISTS ---------------------------------------------------- */
+const wordSets = {
+  PSI: [
+    "bike","butterfly","check","cheese","cherry","chick","chimney","chin","chop",
+    "detective","dog","dolphin","football","hammer","hand","hat","horse","hose",
+    "jar","jet","log","money","mop","pop","seal"
+  ],
+  ESI: [
+    "chance","move","freeze","snooze","fence","cease","cough","goose","golf","cuff",
+    "square","throne","splotch","through","squawk","shrink","swing","quack","swipe",
+    "twelve","dance","quiz","seize","peace","bounce"
+  ],
+  USI: [
+    "happiest","bravest","stronger","hotter","crazier","foggy","quietly","misty",
+    "smoothly","lazily","unicycle","triangle","bisect","quadrangle","bilingual",
+    "misspell","misbehave","discomfort","precaution","misjudge","strongest",
+    "easiest","dirtier","coolest","prettier"
+  ],
+  EXT: [
+    "activity","festive","special","tranquil","minority","afternoon","foreman",
+    "foresight","preseason","reruns","dishonest","uneasy","discourage","disrespect",
+    "inexpensive","rapidly","squeaky","generously","scratchy","merrily","safety",
+    "novel","sensitive","loyalty","humidity"
+  ]
+};
+/* ------------------------------------------------------------------------- */
+
+let activeSet = "";
+let wordList  = [];
+let index     = 0;
+let responses = [];
+const $ = id => document.getElementById(id);
+
+/* ---------- FLOW --------------------------------------------------------- */
+$("startBtn").onclick = () => {
+  $("intro").classList.add("hidden");
+  $("menu").classList.remove("hidden");
+};
+
+document.querySelectorAll(".listBtn").forEach(btn => {
+  btn.onclick = () => {
+    activeSet = btn.dataset.set;
+    index     = 0;
+    responses = [];
+    wordList  = wordSets[activeSet].map(w => ({word: w}));
+    $("menu").classList.add("hidden");
+    loadCard();
+  };
+});
+
+/* ---------- CARD HANDLING ------------------------------------------------ */
+function loadCard(){
+  $("wordNum").textContent = `${activeSet} Word ${index+1} of ${wordList.length}`;
+  $("response").value = "";
+  $("response").focus();
+  $("card").classList.remove("hidden");
+}
+
+$("submitBtn").onclick = submitWord;
+$("response").addEventListener("keyup", e => { if(e.key==="Enter") submitWord(); });
+
+function normalise(str){
+  return str
+    .toLowerCase()
+    .trim()
+    .replace(/[\s.]+$/g,"")   // strip trailing spaces and full stops
+    .trim();
+}
+
+function submitWord(){
+  const typedRaw = $("response").value;
+  const typed    = normalise(typedRaw);
+  const target   = normalise(wordList[index].word);
+  const isCorrect = typed === target;
+  responses.push({typed: typedRaw, correct: isCorrect, target});
+  index++;
+  index < wordList.length ? loadCard() : showResults();
+}
+
+/* ---------- RESULTS & EXPORT -------------------------------------------- */
+function showResults(){
+  $("card").classList.add("hidden");
+  const tbody = $("resultsTable").querySelector("tbody");
+  tbody.innerHTML = "";
+  let score = 0;
+
+  responses.forEach((r,i) => {
+    if(r.correct) score++;
+    const row = document.createElement("tr");
+    row.innerHTML =
+      `<td>${i+1}</td><td>${r.target}</td><td>${r.typed || "(blank)"}</td>` +
+      `<td class="${r.correct ? "correct" : "incorrect"}">${r.correct ? "✔️" : "✖️"}</td>`;
+    tbody.appendChild(row);
+  });
+
+  const percent = Math.round((score / wordList.length) * 100);
+  $("scoreLine").innerHTML =
+    `You spelt <strong>${score} / ${wordList.length}</strong> words correctly (${percent} %).`;
+
+  const badge = $("teacherBadge");
+  if(percent >= 90){
+    badge.textContent = "GREEN ✅ 90 % + met";
+    badge.className   = "badge green";
+  }else{
+    badge.textContent = "YELLOW ⚠️ below 90 %";
+    badge.className   = "badge yellow";
+  }
+  $("results").classList.remove("hidden");
+}
+
+/* export to CSV – no storage after reload */
+$("exportBtn").onclick = () => {
+  let csv = "Set,Index,Word,Typed,Correct\n";
+  responses.forEach((r,i) => {
+    const safeTyped = r.typed.replace(/"/g,'""');
+    csv += `${activeSet},${i+1},${r.target},"${safeTyped}",${r.correct ? 1 : 0}\n`;
+  });
+  const blob = new Blob([csv],{type:"text/csv"});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${activeSet}_results.csv`;
+  link.click();
+};
+</script>
+</body>
+</html>
